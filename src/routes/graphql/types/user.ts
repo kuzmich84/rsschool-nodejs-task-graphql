@@ -1,4 +1,11 @@
-import { GraphQLFloat, GraphQLList, GraphQLObjectType, GraphQLString } from 'graphql';
+import {
+  GraphQLFloat,
+  GraphQLInputObjectType,
+  GraphQLList,
+  GraphQLNonNull,
+  GraphQLObjectType,
+  GraphQLString,
+} from 'graphql';
 import { UUIDType } from './uuid.js';
 import { User } from '../types.js';
 
@@ -10,7 +17,10 @@ export const UserType: GraphQLObjectType<User, FastifyInstance> = new GraphQLObj
   name: 'User',
   fields: () => ({
     id: {
-      type: UUIDType,
+      type: new GraphQLNonNull(UUIDType),
+    },
+    userId: {
+      type: new GraphQLNonNull(UUIDType),
     },
     name: {
       type: GraphQLString,
@@ -34,7 +44,7 @@ export const UserType: GraphQLObjectType<User, FastifyInstance> = new GraphQLObj
     },
     userSubscribedTo: {
       type: new GraphQLList(UserType),
-      resolve: async ({ id }, _, { prisma }: FastifyInstance) => {
+      resolve: async ({ id }: { id: string }, _, { prisma }: FastifyInstance) => {
         return await prisma.user.findMany({
           where: { subscribedToUser: { some: { subscriberId: id } } },
         });
@@ -42,11 +52,31 @@ export const UserType: GraphQLObjectType<User, FastifyInstance> = new GraphQLObj
     },
     subscribedToUser: {
       type: new GraphQLList(UserType),
-      resolve: async ({ id }, _, { prisma }: FastifyInstance) => {
+      resolve: async ({ id }: { id: string }, _, { prisma }: FastifyInstance) => {
         return await prisma.user.findMany({
           where: { userSubscribedTo: { some: { authorId: id } } },
         });
       },
     },
+  }),
+});
+
+export const CreateUserInputType = new GraphQLInputObjectType({
+  name: 'CreateUserInput',
+  fields: {
+    name: {
+      type: GraphQLString,
+    },
+    balance: {
+      type: GraphQLFloat,
+    },
+  },
+});
+
+export const ChangeUserInputType = new GraphQLInputObjectType({
+  name: 'ChangeUserInput',
+  fields: () => ({
+    name: { type: GraphQLString },
+    balance: { type: GraphQLFloat },
   }),
 });

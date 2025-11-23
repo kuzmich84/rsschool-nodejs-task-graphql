@@ -1,6 +1,7 @@
 import {
   GraphQLBoolean,
   GraphQLInt,
+  GraphQLInputObjectType,
   GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString,
@@ -12,6 +13,7 @@ import { MemberType } from './memberType.js';
 import { MemberTypeId } from '../../member-types/schemas.js';
 import { Profile } from '../types.js';
 import { UserType } from './user.js';
+import { memberTypeId } from './memberTypeId.js';
 
 export const ProfileType: GraphQLObjectType<Profile, { prisma: PrismaClient }> =
   new GraphQLObjectType({
@@ -54,3 +56,36 @@ export const ProfileType: GraphQLObjectType<Profile, { prisma: PrismaClient }> =
       },
     }),
   });
+
+export const CreateProfileInputType = new GraphQLInputObjectType({
+  name: 'CreateProfileInput',
+  fields: () => ({
+    userId: {
+      type: new GraphQLNonNull(UUIDType),
+    },
+    memberTypeId: {
+      type: memberTypeId,
+    },
+    isMale: {
+      type: GraphQLBoolean,
+    },
+    yearOfBirth: {
+      type: GraphQLInt,
+    },
+  }),
+});
+
+export const ChangeProfileInputType = new GraphQLInputObjectType({
+  name: 'ChangeProfileInput',
+  fields: () => ({
+    memberTypeId: {
+      type: memberTypeId,
+    },
+    isMale: {
+      type: GraphQLBoolean,
+    },
+    yearOfBirth: {
+      type: GraphQLInt,
+    },
+  }),
+});

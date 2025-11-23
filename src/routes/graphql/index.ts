@@ -9,15 +9,21 @@ import {
   GraphQLNonNull,
   parse,
   validate,
+  GraphQLBoolean,
 } from 'graphql';
 import depthLimit from 'graphql-depth-limit';
 
 import { UUIDType } from './types/uuid.js';
-import { UserType } from './types/user.js';
+import { ChangeUserInputType, CreateUserInputType, UserType } from './types/user.js';
 import { MemberType } from './types/memberType.js';
-import { PostType } from './types/postType.js';
+import { ChangePostInputType, CreatePostInputType, PostType } from './types/postType.js';
 import { memberTypeId } from './types/memberTypeId.js';
-import { ProfileType } from './types/ProfileType.js';
+import {
+  ChangeProfileInputType,
+  CreateProfileInputType,
+  ProfileType,
+} from './types/ProfileType.js';
+import { MemberTypeId } from '../member-types/schemas.js';
 
 const schema = new GraphQLSchema({
   query: new GraphQLObjectType({
@@ -75,6 +81,194 @@ const schema = new GraphQLSchema({
         args: { id: { type: new GraphQLNonNull(UUIDType) } },
         resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
           return await prisma.profile.findUnique({ where: { id } });
+        },
+      },
+    },
+  }),
+  mutation: new GraphQLObjectType({
+    name: 'Mutation',
+    fields: {
+      createUser: {
+        type: UserType,
+        args: {
+          dto: {
+            type: CreateUserInputType,
+          },
+        },
+        async resolve(
+          _,
+          args: { dto: { name: string; balance: number } },
+          { prisma }: FastifyInstance,
+        ) {
+          return prisma.user.create({ data: args.dto });
+        },
+      },
+      createPost: {
+        type: PostType,
+        args: { dto: { type: CreatePostInputType } },
+        resolve: async (
+          _,
+          args: { dto: { title: string; content: string; authorId: string } },
+          { prisma }: FastifyInstance,
+        ) => {
+          return await prisma.post.create({ data: args.dto });
+        },
+      },
+      createProfile: {
+        type: ProfileType,
+        args: { dto: { type: CreateProfileInputType } },
+        resolve: async (
+          _,
+          args: {
+            dto: {
+              isMale: boolean;
+              yearOfBirth: number;
+              memberTypeId: MemberTypeId;
+              userId: string;
+            };
+          },
+          { prisma }: FastifyInstance,
+        ) => {
+          return await prisma.profile.create({ data: args.dto });
+        },
+      },
+      deleteUser: {
+        type: GraphQLBoolean,
+        args: { id: { type: new GraphQLNonNull(UUIDType) } },
+        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
+          try {
+            await prisma.user.delete({ where: { id } });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      },
+      deletePost: {
+        type: GraphQLBoolean,
+        args: { id: { type: new GraphQLNonNull(UUIDType) } },
+        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
+          try {
+            await prisma.post.delete({ where: { id } });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      },
+      deleteProfile: {
+        type: GraphQLBoolean,
+        args: { id: { type: new GraphQLNonNull(UUIDType) } },
+        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
+          try {
+            await prisma.profile.delete({ where: { id } });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      },
+      changeUser: {
+        type: UserType,
+        args: {
+          id: { type: new GraphQLNonNull(UUIDType) },
+          dto: { type: ChangeUserInputType },
+        },
+        resolve: async (
+          _,
+          args: { id: string; dto: { name: string; balance: number } },
+          { prisma }: FastifyInstance,
+        ) => {
+          const { id, dto } = args;
+          return await prisma.user.update({
+            where: { id: id },
+            data: dto,
+          });
+        },
+      },
+      changePost: {
+        type: PostType,
+        args: {
+          id: { type: new GraphQLNonNull(UUIDType) },
+          dto: { type: ChangePostInputType },
+        },
+        resolve: async (
+          _,
+          args: { id: string; dto: { title: string; content: string } },
+          { prisma }: FastifyInstance,
+        ) => {
+          const { id, dto } = args;
+          return await prisma.post.update({
+            where: { id: id },
+            data: dto,
+          });
+        },
+      },
+      changeProfile: {
+        type: ProfileType,
+        args: {
+          id: { type: new GraphQLNonNull(UUIDType) },
+          dto: { type: ChangeProfileInputType },
+        },
+        resolve: async (
+          _,
+          args: { id: string; dto: { isMale: boolean; yearOfBirth: number } },
+          { prisma }: FastifyInstance,
+        ) => {
+          const { id, dto } = args;
+          return await prisma.profile.update({
+            where: { id: id },
+            data: dto,
+          });
+        },
+      },
+
+      subscribeTo: {
+        type: UserType,
+        args: {
+          userId: { type: UUIDType },
+          authorId: { type: UUIDType },
+        },
+        resolve: async (
+          _,
+          args: { userId: string; authorId: string },
+          { prisma }: FastifyInstance,
+        ) => {
+          await prisma.user.update({
+            where: {
+              id: args.userId,
+            },
+            data: {
+              userSubscribedTo: {
+                create: {
+                  authorId: args.authorId,
+                },
+              },
+            },
+          });
+        },
+      },
+      unsubscribeFrom: {
+        type: GraphQLBoolean,
+        args: {
+          userId: { type: UUIDType },
+          authorId: { type: UUIDType },
+        },
+        resolve: async (
+          _,
+          args: { userId: string; authorId: string },
+          { prisma }: FastifyInstance,
+        ) => {
+          const unsubscribed = await prisma.subscribersOnAuthors.delete({
+            where: {
+              subscriberId_authorId: {
+                subscriberId: args.userId,
+                authorId: args.authorId,
+              },
+            },
+          });
+
+          return unsubscribed ? true : false;
         },
       },
     },
