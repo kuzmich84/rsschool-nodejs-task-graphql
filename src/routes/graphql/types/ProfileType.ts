@@ -1,26 +1,23 @@
 import {
   GraphQLBoolean,
-  GraphQLInt,
   GraphQLInputObjectType,
-  GraphQLNonNull,
+  GraphQLInt,
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
 import { UUIDType } from './uuid.js';
-
-import type { PrismaClient } from '@prisma/client';
-import { MemberType } from './memberType.js';
+import { GraphqlContext, Profile } from '../types.js';
+import { MemberType } from './MemberType.js';
 import { MemberTypeId } from '../../member-types/schemas.js';
-import { Profile } from '../types.js';
-import { UserType } from './user.js';
-import { memberTypeId } from './memberTypeId.js';
+import { memberTypeId } from './MemberTypeId.js';
+import { UserType } from './User.js';
 
-export const ProfileType: GraphQLObjectType<Profile, { prisma: PrismaClient }> =
+export const ProfileType: GraphQLObjectType<Profile, GraphqlContext> =
   new GraphQLObjectType({
     name: 'Profile',
     fields: () => ({
       id: {
-        type: new GraphQLNonNull(UUIDType),
+        type: UUIDType,
       },
       isMale: {
         type: GraphQLBoolean,
@@ -32,14 +29,12 @@ export const ProfileType: GraphQLObjectType<Profile, { prisma: PrismaClient }> =
         type: GraphQLString,
       },
       userId: {
-        type: new GraphQLNonNull(UUIDType),
+        type: UUIDType,
       },
       user: {
         type: UserType,
-        resolve: async ({ userId }, _, { prisma }: { prisma: PrismaClient }) => {
-          return prisma.user.findUnique({
-            where: { id: userId },
-          });
+        resolve: async ({ userId }, _, context: GraphqlContext) => {
+          return await context.loaders.userById.load(userId);
         },
       },
       memberType: {
@@ -47,11 +42,9 @@ export const ProfileType: GraphQLObjectType<Profile, { prisma: PrismaClient }> =
         resolve: async (
           { memberTypeId }: { memberTypeId: MemberTypeId },
           _,
-          { prisma }: { prisma: PrismaClient },
+          context: GraphqlContext,
         ) => {
-          return prisma.memberType.findUnique({
-            where: { id: memberTypeId },
-          });
+          return await context.loaders.memberTypeById.load(memberTypeId);
         },
       },
     }),
@@ -61,7 +54,7 @@ export const CreateProfileInputType = new GraphQLInputObjectType({
   name: 'CreateProfileInput',
   fields: () => ({
     userId: {
-      type: new GraphQLNonNull(UUIDType),
+      type: UUIDType,
     },
     memberTypeId: {
       type: memberTypeId,

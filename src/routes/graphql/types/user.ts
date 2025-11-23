@@ -2,25 +2,23 @@ import {
   GraphQLFloat,
   GraphQLInputObjectType,
   GraphQLList,
-  GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
 import { UUIDType } from './uuid.js';
-import { User } from '../types.js';
-
-import { FastifyInstance } from 'fastify';
-import { PostType } from './postType.js';
+import { GraphqlContext, User } from '../types.js';
 import { ProfileType } from './ProfileType.js';
 
-export const UserType: GraphQLObjectType<User, FastifyInstance> = new GraphQLObjectType({
+import { PostType } from './PostType.js';
+
+export const UserType: GraphQLObjectType<User, GraphqlContext> = new GraphQLObjectType({
   name: 'User',
   fields: () => ({
     id: {
-      type: new GraphQLNonNull(UUIDType),
+      type: UUIDType,
     },
     userId: {
-      type: new GraphQLNonNull(UUIDType),
+      type: UUIDType,
     },
     name: {
       type: GraphQLString,
@@ -30,32 +28,29 @@ export const UserType: GraphQLObjectType<User, FastifyInstance> = new GraphQLObj
     },
     profile: {
       type: ProfileType,
-      resolve: async ({ id }, _, { prisma }: FastifyInstance) => {
-        return await prisma.profile.findUnique({
-          where: { userId: id },
-        });
+      resolve: async ({ id }, _, context: GraphqlContext) => {
+        return await context.loaders.profileByUserId.load(id);
       },
     },
     posts: {
       type: new GraphQLList(PostType),
-      resolve: async ({ id }, _, { prisma }: FastifyInstance) => {
-        return await prisma.post.findMany({ where: { authorId: id } });
+      resolve: async ({ id }, _, context: GraphqlContext) => {
+        return await context.loaders.postsByAuthorId.load(id);
       },
     },
+
     userSubscribedTo: {
       type: new GraphQLList(UserType),
-      resolve: async ({ id }: { id: string }, _, { prisma }: FastifyInstance) => {
-        return await prisma.user.findMany({
-          where: { subscribedToUser: { some: { subscriberId: id } } },
-        });
+      resolve: async (src, _, context: GraphqlContext) => {
+        const userSubs = src.userSubscribedTo || [];
+        return await context.loaders.userById.loadMany(userSubs.map((s) => s.authorId));
       },
     },
     subscribedToUser: {
       type: new GraphQLList(UserType),
-      resolve: async ({ id }: { id: string }, _, { prisma }: FastifyInstance) => {
-        return await prisma.user.findMany({
-          where: { userSubscribedTo: { some: { authorId: id } } },
-        });
+      async resolve(src, _, context: GraphqlContext) {
+        const subsToUser = src.subscribedToUser || [];
+        return context.loaders.userById.loadMany(subsToUser.map((s) => s.subscriberId));
       },
     },
   }),
