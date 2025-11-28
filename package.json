@@ -1,7 +1,7 @@
 {
   "name": "nodejs-task-graphql-basics",
   "version": "1.0.0",
-  "description": "nodejs-task-graphql-basics",
+  "description": "nodejs-task-graphql- basics",
   "main": "app.ts",
   "nyc": {
     "sourceMap": false,
